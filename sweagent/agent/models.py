@@ -237,11 +237,6 @@ class OpenAIModel(BaseModel):
             "cost_per_input_token": 5e-06,
             "cost_per_output_token": 15e-06,
         },
-        "llama3-70b-8192": {
-            "max_context": 8_192,
-            "cost_per_input_token": 1.5e-07,
-            "cost_per_output_token": 1.5e-07,
-        },
         "mixtral-8x7b-32768": {
             "max_context": 32_768,
             "cost_per_input_token": 1.5e-07,
@@ -258,7 +253,6 @@ class OpenAIModel(BaseModel):
         "gpt3-0125": "gpt-3.5-turbo-0125",
         "gpt4-turbo": "gpt-4-turbo-2024-04-09",
         "gpt4o": "gpt-4o-2024-05-13",
-        "llama3": " llama3-70b-8192",
         "mixtral": "mixtral-8x7b-32768",
     }
 
@@ -941,6 +935,7 @@ def get_model(args: ModelArguments, commands: list[Command] | None = None):
         args.model_name.startswith("gpt")
         or args.model_name.startswith("ft:gpt")
         or args.model_name.startswith("azure:gpt")
+        or args.model_name.startswith("mixtral")
     ):
         return OpenAIModel(args, commands)
     elif args.model_name.startswith("claude"):
