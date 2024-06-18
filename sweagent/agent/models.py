@@ -89,9 +89,7 @@ class BaseModel:
         self.stats = APIStats()
 
         # Map `model_name` to API-compatible name `api_model`
-        self.api_model = (
-            self.SHORTCUTS[self.args.model_name] if self.args.model_name in self.SHORTCUTS else self.args.model_name
-        )
+        self.api_model = self.SHORTCUTS[self.args.model_name] if self.args.model_name in self.SHORTCUTS else self.args.model_name
 
         # Map model name to metadata (cost, context info)
         MODELS = {
@@ -223,6 +221,16 @@ class OpenAIModel(BaseModel):
             "cost_per_input_token": 5e-06,
             "cost_per_output_token": 15e-06,
         },
+        "llama3-70b-8192": {
+            "max_context": 8_192,
+            "cost_per_input_token": 1.5e-07,
+            "cost_per_output_token": 1.5e-07,
+        },
+        "mixtral-8x7b-32768": {
+            "max_context": 32_768,
+            "cost_per_input_token": 1.5e-07,
+            "cost_per_output_token": 1.5e-07,
+        },
     }
 
     SHORTCUTS = {
@@ -234,6 +242,8 @@ class OpenAIModel(BaseModel):
         "gpt3-0125": "gpt-3.5-turbo-0125",
         "gpt4-turbo": "gpt-4-turbo-2024-04-09",
         "gpt4o": "gpt-4o-2024-05-13",
+        "llama3": " llama3-70b-8192",
+        "mixtral": "mixtral-8x7b-32768",
     }
 
     def __init__(self, args: ModelArguments, commands: list[Command]):
@@ -491,9 +501,7 @@ def anthropic_history_to_messages(
         return "\n".join([entry["content"] for entry in history])
 
     # Return history components with just role, content fields (no system message)
-    messages = [
-        {k: v for k, v in entry.items() if k in ["role", "content"]} for entry in history if entry["role"] != "system"
-    ]
+    messages = [{k: v for k, v in entry.items() if k in ["role", "content"]} for entry in history if entry["role"] != "system"]
     compiled_messages = []  # Combine messages from the same role
     last_role = None
     for message in reversed(messages):
@@ -530,9 +538,11 @@ def anthropic_query(model: AnthropicModel | BedrockModel, history: list[dict[str
         completion = model.api.completions.create(
             model=model.api_model,
             prompt=prompt,
-            max_tokens_to_sample=model.model_metadata["max_context"] - input_tokens
-            if isinstance(model, Anthropic)
-            else model.model_metadata["max_tokens_to_sample"],
+            max_tokens_to_sample=(
+                model.model_metadata["max_context"] - input_tokens
+                if isinstance(model, Anthropic)
+                else model.model_metadata["max_tokens_to_sample"]
+            ),
             temperature=model.args.temperature,
             top_p=model.args.top_p,
         )
@@ -724,9 +734,7 @@ class HumanModel(BaseModel):
         super().__init__(args, commands)
 
         # Determine which commands require multi-line input
-        self.multi_line_command_endings = {
-            command.name: command.end_name for command in commands if command.end_name is not None
-        }
+        self.multi_line_command_endings = {command.name: command.end_name for command in commands if command.end_name is not None}
 
     def history_to_messages(
         self,
@@ -873,11 +881,7 @@ def get_model(args: ModelArguments, commands: list[Command] | None = None):
         return HumanThoughtModel(args, commands)
     if args.model_name == "replay":
         return ReplayModel(args, commands)
-    elif (
-        args.model_name.startswith("gpt")
-        or args.model_name.startswith("ft:gpt")
-        or args.model_name.startswith("azure:gpt")
-    ):
+    elif args.model_name.startswith("gpt") or args.model_name.startswith("ft:gpt") or args.model_name.startswith("azure:gpt"):
         return OpenAIModel(args, commands)
     elif args.model_name.startswith("claude"):
         return AnthropicModel(args, commands)

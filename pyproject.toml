@@ -207,3 +207,7 @@ aci = "aci"
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
+
+[tool.black]
+line-length = 130
+target-version = ['py311']
