@@ -37,7 +37,9 @@ def get_data_path_name(data_path: str) -> str:
     elif it's a github url, return the owner__repo_name
     """
     if data_path.startswith("text://"):
-        return hashlib.sha256(data_path.removeprefix("text://").encode()).hexdigest()[:6]
+        return hashlib.sha256(data_path.removeprefix("text://").encode()).hexdigest()[
+            :6
+        ]
     match = GITHUB_ISSUE_URL_PATTERN.search(data_path)
     if match:
         owner, repo, _ = match.groups()
@@ -58,7 +60,9 @@ def is_github_repo_url(data_path: str) -> bool:
 
 
 # TODO: Why not just use copy_anything_to_container?
-def copy_file_to_container(container: Container, contents: str, container_path: str) -> None:
+def copy_file_to_container(
+    container: Container, contents: str, container_path: str
+) -> None:
     """
     Copies a given string into a Docker container at a specified path.
 
@@ -87,12 +91,16 @@ def copy_file_to_container(container: Container, contents: str, container_path: 
                 # Prepare the TAR archive
                 with BytesIO() as tar_stream:
                     with tarfile.open(fileobj=tar_stream, mode="w") as tar:
-                        tar_info = tarfile.TarInfo(name=os.path.basename(container_path))
+                        tar_info = tarfile.TarInfo(
+                            name=os.path.basename(container_path)
+                        )
                         tar_info.size = os.path.getsize(temp_file_name)
                         tar.addfile(tarinfo=tar_info, fileobj=temp_file)
                     tar_stream.seek(0)
                     # Copy the TAR stream to the container
-                    container.put_archive(path=os.path.dirname(container_path), data=tar_stream.read())
+                    container.put_archive(
+                        path=os.path.dirname(container_path), data=tar_stream.read()
+                    )
 
     except Exception as e:
         logger.error(f"An error occurred: {e}")
@@ -103,7 +111,9 @@ def copy_file_to_container(container: Container, contents: str, container_path: 
             os.remove(temp_file_name)
 
 
-def copy_anything_to_container(container: Container, host_path: str, container_path: str) -> None:
+def copy_anything_to_container(
+    container: Container, host_path: str, container_path: str
+) -> None:
     """Copy files or directories from host to container
 
     Note: Will need to set ownership on the copied files in the container.
@@ -112,7 +122,9 @@ def copy_anything_to_container(container: Container, host_path: str, container_p
         msg = f"Path {host_path} does not exist, cannot copy it to container."
         raise FileNotFoundError(msg)
     cmd = ["docker", "cp", host_path, f"{container.id}:{container_path}"]
-    logger.debug(f"Copying {host_path} to container at {container_path} with command: {shlex.join(cmd)}")
+    logger.debug(
+        f"Copying {host_path} to container at {container_path} with command: {shlex.join(cmd)}"
+    )
     try:
         subprocess.run(cmd, check=True)
     except subprocess.CalledProcessError as e:
@@ -120,7 +132,9 @@ def copy_anything_to_container(container: Container, host_path: str, container_p
         raise RuntimeError(msg) from e
 
 
-def read_with_timeout(container: subprocess.Popen, pid_func: Callable, timeout_duration: int) -> str:
+def read_with_timeout(
+    container: subprocess.Popen, pid_func: Callable, timeout_duration: int
+) -> str:
     """
     Read data from a subprocess with a timeout.
     This function uses a file descriptor to read data from the subprocess in a non-blocking way.
@@ -179,10 +193,14 @@ def read_with_timeout(container: subprocess.Popen, pid_func: Callable, timeout_d
 
 PROCESS_DONE_MARKER_START = "///PROCESS-DONE:"
 PROCESS_DONE_MARKER_END = ":PROCESS-DONE///"
-PROCESS_DONE_REGEX = re.compile(rf"{PROCESS_DONE_MARKER_START}(.+?){PROCESS_DONE_MARKER_END}")
+PROCESS_DONE_REGEX = re.compile(
+    rf"{PROCESS_DONE_MARKER_START}(.+?){PROCESS_DONE_MARKER_END}"
+)
 
 
-def read_with_timeout_experimental(container: subprocess.Popen, timeout_duration: int) -> tuple[str, str]:
+def read_with_timeout_experimental(
+    container: subprocess.Popen, timeout_duration: int
+) -> tuple[str, str]:
     """
     Read data from a subprocess with a timeout.
     This function uses a file descriptor to read data from the subprocess in a non-blocking way.
@@ -236,7 +254,11 @@ def read_with_timeout_experimental(container: subprocess.Popen, timeout_duration
         msg = f"Timeout reached while reading from subprocess.\nCurrent buffer: {buffer.decode()}"
         raise TimeoutError(msg)
     decoded = buffer.decode()
-    body = "\n".join(line for line in decoded.splitlines() if not line.startswith(PROCESS_DONE_MARKER_START))
+    body = "\n".join(
+        line
+        for line in decoded.splitlines()
+        if not line.startswith(PROCESS_DONE_MARKER_START)
+    )
     last_line = decoded.splitlines()[-1]
     _results = PROCESS_DONE_REGEX.search(last_line)
     if _results is None:
@@ -247,7 +269,11 @@ def read_with_timeout_experimental(container: subprocess.Popen, timeout_duration
 
 
 def get_background_pids(container_obj: Container):
-    pids = container_obj.exec_run("ps -eo pid,comm --no-headers").output.decode().split("\n")
+    pids = (
+        container_obj.exec_run("ps -eo pid,comm --no-headers")
+        .output.decode()
+        .split("\n")
+    )
     pids = [x.split() for x in pids if x]
     pids = [x for x in pids if x[1] not in {"ps"} and x[0] != "1"]
     bash_pids = [x for x in pids if x[1] == "bash"]
@@ -255,7 +281,9 @@ def get_background_pids(container_obj: Container):
     return bash_pids, other_pids
 
 
-def _get_non_persistent_container(ctr_name: str, image_name: str) -> tuple[subprocess.Popen, set[str]]:
+def _get_non_persistent_container(
+    ctr_name: str, image_name: str
+) -> tuple[subprocess.Popen, set[str]]:
     startup_cmd = [
         "docker",
         "run",
@@ -362,7 +390,9 @@ def _get_persistent_container(
     return container, {str(bash_pid), "1"}
 
 
-def get_container(ctr_name: str, image_name: str, persistent: bool = False) -> tuple[subprocess.Popen, set]:
+def get_container(
+    ctr_name: str, image_name: str, persistent: bool = False
+) -> tuple[subprocess.Popen, set]:
     """
     Get a container object for a given container name and image name
 
@@ -497,7 +527,9 @@ def get_gh_issue_data(issue_url: str, *, token: str = ""):
     return api.issues.get(owner, repo, issue_number)
 
 
-def get_problem_statement_from_github_issue(owner: str, repo: str, issue_number: str, *, token: str | None = "") -> str:
+def get_problem_statement_from_github_issue(
+    owner: str, repo: str, issue_number: str, *, token: str | None = ""
+) -> str:
     """Return problem statement from github issue"""
     api = GhApi(token=token)
     issue = api.issues.get(owner, repo, issue_number)
@@ -533,7 +565,9 @@ class InstanceBuilder:
 
     def set_problem_statement_from_text(self, text: str):
         self.args["problem_statement"] = text
-        self.args["instance_id"] = hashlib.sha256(self.args["problem_statement"].encode()).hexdigest()[:6]
+        self.args["instance_id"] = hashlib.sha256(
+            self.args["problem_statement"].encode()
+        ).hexdigest()[:6]
         self.args["problem_statement_source"] = "local"
 
     def set_problem_statement(self, data_path: str):
@@ -541,7 +575,9 @@ class InstanceBuilder:
         path to a markdown or text file.
         """
         if data_path.startswith("text://"):
-            return self.set_problem_statement_from_text(data_path.removeprefix("text://"))
+            return self.set_problem_statement_from_text(
+                data_path.removeprefix("text://")
+            )
         if is_github_issue_url(data_path):
             return self.set_problem_statement_from_gh_issue(data_path)
         if Path(data_path).is_file():
@@ -557,7 +593,9 @@ class InstanceBuilder:
         api = GhApi(token=self.token)
         self.args["base_commit"] = get_commit(api, owner, repo, ref=base_commit).sha
         if base_commit != self.args["base_commit"]:
-            logger.info(f"Base commit reference {base_commit} resolved to commit hash {self.args['base_commit']}")
+            logger.info(
+                f"Base commit reference {base_commit} resolved to commit hash {self.args['base_commit']}"
+            )
         self.args["version"] = self.args["base_commit"][:7]
 
     def set_repo_info_from_local_path(self, path: str, base_commit: str | None = None):
@@ -719,7 +757,12 @@ def get_instances(
         with open(file_path) as file:
             return postproc_instance_list(json.load(file))
     if file_path.endswith(".jsonl"):
-        return postproc_instance_list([json.loads(x) for x in Path(file_path).read_text().splitlines(keepends=True)])
+        return postproc_instance_list(
+            [
+                json.loads(x)
+                for x in Path(file_path).read_text().splitlines(keepends=True)
+            ]
+        )
 
     # Attempt load from HF datasets as a last resort
     try:
@@ -732,7 +775,9 @@ def get_instances(
         raise ValueError(msg) from e
 
 
-def get_associated_commit_urls(org: str, repo: str, issue_number: str, *, token: str = "") -> list[str]:
+def get_associated_commit_urls(
+    org: str, repo: str, issue_number: str, *, token: str = ""
+) -> list[str]:
     """Return the URLs of commits that would close an issue."""
     api = GhApi(token=token)
     # Strangely the "pull_request" field of api.issues.get is often not set
@@ -746,7 +791,10 @@ def get_associated_commit_urls(org: str, repo: str, issue_number: str, *, token:
             continue
         commit = api.repos.get_commit(org, repo, event.commit_id)
         message = commit.commit.message
-        if f"fixes #{issue_number}" in message.lower() or f"closes #{issue_number}" in message.lower():
+        if (
+            f"fixes #{issue_number}" in message.lower()
+            or f"closes #{issue_number}" in message.lower()
+        ):
             commit_urls.append(commit.html_url)
     return commit_urls
 
